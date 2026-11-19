@@ -78,6 +78,19 @@ export interface TranslationStrings {
   scheduleTitle: string;
   scheduleSubtitle: string;
   nextDeparture: string;
+  installAppTitle: string;
+  installAppDesc: string;
+  installAppBtn: string;
+  installIOSHeading: string;
+  installIOSStep1: string;
+  installIOSStep2: string;
+  installIOSStep3: string;
+  installGeneralHeading: string;
+  installGeneralStep1: string;
+  installGeneralStep2: string;
+  installGeneralStep3: string;
+  installGotIt: string;
+  offlineBanner: string;
 }
 
 export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
@@ -159,6 +172,19 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
     scheduleTitle: 'KBU Romklao Shuttle Timetable',
     scheduleSubtitle: 'Dormitory · ข้าวซอยเงินล้าน · Romklao Campus · Every 15 min (07:00 – 18:00)',
     nextDeparture: 'Next trip',
+    installAppTitle: 'Install KBU Ride App',
+    installAppDesc: 'Add to your home screen for instant shuttle access',
+    installAppBtn: 'Install',
+    installIOSHeading: 'Install on iPhone / iPad',
+    installIOSStep1: 'Tap the Share button in the Safari toolbar.',
+    installIOSStep2: 'Scroll down and tap "Add to Home Screen".',
+    installIOSStep3: 'Tap "Add" in the top corner to install KBU Ride.',
+    installGeneralHeading: 'Install KBU Ride App',
+    installGeneralStep1: 'Open the browser menu (⋮ or install icon in the address bar).',
+    installGeneralStep2: 'Select "Install app" or "Add to Home screen".',
+    installGeneralStep3: 'Confirm to launch KBU Ride like a native mobile app.',
+    installGotIt: 'Got it',
+    offlineBanner: 'Offline mode — Cached schedule & UI active',
   },
   th: {
     tagline: 'เพื่อเวลาของคุณ',
@@ -238,6 +264,19 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
     scheduleTitle: 'ตารางเดินรถรับส่ง ม.เกษมบัณฑิต ร่มเกล้า',
     scheduleSubtitle: 'หอพักฯ · ข้าวซอยเงินล้าน · ม.เกษมบัณฑิต ร่มเกล้า · ออกทุก 15 นาที (07:00 – 18:00 น.)',
     nextDeparture: 'รอบถัดไป',
+    installAppTitle: 'ติดตั้งแอป KBU Ride',
+    installAppDesc: 'เพิ่มลงหน้าจอหลักเพื่อติดตามรถรับส่งได้ทันที',
+    installAppBtn: 'ติดตั้ง',
+    installIOSHeading: 'ติดตั้งบน iPhone / iPad',
+    installIOSStep1: 'แตะปุ่มแชร์ (Share) ที่แถบด้านล่างของ Safari',
+    installIOSStep2: 'เลื่อนลงแล้วเลือก "เพิ่มไปยังหน้าจอโฮม" (Add to Home Screen)',
+    installIOSStep3: 'แตะ "เพิ่ม" (Add) มุมขวาบนเพื่อติดตั้ง KBU Ride',
+    installGeneralHeading: 'ติดตั้งแอป KBU Ride',
+    installGeneralStep1: 'เปิดเมนูเบราว์เซอร์ (⋮ หรือไอคอนติดตั้งที่แถบ URL)',
+    installGeneralStep2: 'เลือก "ติดตั้งแอป" (Install app) หรือ "เพิ่มไปยังหน้าจอหลัก"',
+    installGeneralStep3: 'ยืนยันเพื่อใช้งาน KBU Ride เหมือนแอปบนมือถือ',
+    installGotIt: 'เข้าใจแล้ว',
+    offlineBanner: 'โหมดออฟไลน์ — แสดงตารางเวลาที่บันทึกไว้',
   },
 };
 

@@ -23,6 +23,7 @@ import { getInitials, maskPhoneNumber } from '../utils/authHelpers';
 import { getTimeGreeting, type TranslationStrings } from '../utils/i18n';
 import { LiveMapCanvas } from './LiveMapCanvas';
 import { ServiceHoursBar } from './ServiceHoursBar';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface HomeDashboardProps {
   t: TranslationStrings;
@@ -228,13 +229,14 @@ export function HomeDashboard({
       )}
 
       {/* Operating Hours Status & Off-Hours Live Preview Bar */}
-      <div className="mb-5">
+      <div className="mb-5 space-y-3">
         <ServiceHoursBar
           t={t}
           serviceStatus={serviceStatus}
           previewLive={previewLive}
           onTogglePreview={onTogglePreview}
         />
+        <PWAInstallButton t={t} variant="banner" />
       </div>
 
       {/* Main Responsive Grid: Single column on mobile (Image 04), 2-column dashboard on desktop */}

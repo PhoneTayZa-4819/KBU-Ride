@@ -3,6 +3,7 @@ import { Check, Pencil } from 'lucide-react';
 import type { AppearanceMode, LanguageCode, StudentProfile } from '../types/kbu';
 import { getInitials, maskPhoneNumber } from '../utils/authHelpers';
 import type { TranslationStrings } from '../utils/i18n';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface AboutMeViewProps {
   t: TranslationStrings;
@@ -319,6 +320,8 @@ export function AboutMeView({
 
           {/* Action Rows matching Image 08 */}
           <div className="space-y-3 pt-1">
+            <PWAInstallButton t={t} variant="settings-row" />
+
             <button
               type="button"
               onClick={onOpenChangePhone}

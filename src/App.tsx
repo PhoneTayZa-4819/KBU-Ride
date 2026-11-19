@@ -38,6 +38,7 @@ import { AboutMeView } from './components/AboutMeView';
 import { TermsModal } from './components/TermsModal';
 import { ChangePhoneModal } from './components/ChangePhoneModal';
 import { KbuRouteResolver } from './components/KbuRouteResolver';
+import { OfflineIndicator } from './components/OfflineIndicator';
 
 const MAPS_API_KEY = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined) ?? '';
 
@@ -202,6 +203,10 @@ export default function App() {
       const shouldBeDark = appearance === 'dark' || (appearance === 'system' && prefersDark);
       root.classList.toggle('dark', shouldBeDark);
       setResolvedDark(shouldBeDark);
+      const themeMeta = document.querySelector('meta[name="theme-color"]');
+      if (themeMeta) {
+        themeMeta.setAttribute('content', shouldBeDark ? '#0E0A08' : '#FAF7F4');
+      }
     };
     applyTheme();
     window.localStorage.setItem(STORAGE_KEYS.APPEARANCE, JSON.stringify(appearance));
@@ -558,6 +563,9 @@ export default function App() {
           setProfile((prev) => ({ ...prev, countryCode, phoneNumber, verified: true }))
         }
       />
+
+      {/* Offline Connectivity Indicator */}
+      <OfflineIndicator t={t} />
     </div>
   );
 }
