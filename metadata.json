@@ -1,0 +1,8 @@
+{
+  "name": "KBU Ride",
+  "description": "Real-time campus shuttle tracking, arrival reminders, and daily timetables for Kasem Bundit University students.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
