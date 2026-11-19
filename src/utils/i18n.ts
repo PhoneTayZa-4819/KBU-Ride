@@ -10,6 +10,10 @@ export interface TranslationStrings {
   locationNotice: string;
   welcomeTitle: string;
   welcomeSubtitle: string;
+  fullNameLabel: string;
+  fullNamePlaceholder: string;
+  nameRequiredError: string;
+  addYourName: string;
   continueBtn: string;
   verifyNumberTitle: string;
   verifyNumberSubtitle: string;
@@ -103,7 +107,11 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
     termsAndConditions: 'Terms & Conditions',
     locationNotice: 'Location is used only to show shuttles near you. You choose in the next system prompt.',
     welcomeTitle: 'Welcome to KBU Ride',
-    welcomeSubtitle: 'Enter your phone number to continue your journey.',
+    welcomeSubtitle: 'Enter your name and phone number to continue your journey.',
+    fullNameLabel: 'Full name',
+    fullNamePlaceholder: 'Enter your full name',
+    nameRequiredError: 'Please enter your name (at least 2 characters).',
+    addYourName: 'Add your name',
     continueBtn: 'Continue',
     verifyNumberTitle: 'Verify your number',
     verifyNumberSubtitle: 'Enter the 6-digit code sent by SMS.',
@@ -195,7 +203,11 @@ export const TRANSLATIONS: Record<LanguageCode, TranslationStrings> = {
     termsAndConditions: 'ข้อกำหนดและเงื่อนไข',
     locationNotice: 'ตำแหน่งใช้เพื่อแสดงรถรับส่งใกล้คุณเท่านั้น คุณสามารถเลือกได้ในขั้นตอนถัดไป',
     welcomeTitle: 'ยินดีต้อนรับสู่ KBU Ride',
-    welcomeSubtitle: 'กรอกหมายเลขโทรศัพท์ของคุณเพื่อเริ่มการเดินทาง',
+    welcomeSubtitle: 'กรอกชื่อและหมายเลขโทรศัพท์ของคุณเพื่อเริ่มการเดินทาง',
+    fullNameLabel: 'ชื่อ-นามสกุล',
+    fullNamePlaceholder: 'กรอกชื่อของคุณ',
+    nameRequiredError: 'กรุณากรอกชื่อของคุณ (อย่างน้อย 2 ตัวอักษร)',
+    addYourName: 'เพิ่มชื่อของคุณ',
     continueBtn: 'ดำเนินการต่อ',
     verifyNumberTitle: 'ยืนยันหมายเลขโทรศัพท์',
     verifyNumberSubtitle: 'กรอกรหัส 6 หลักที่ส่งทาง SMS',

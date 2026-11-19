@@ -1,14 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  APILoadingStatus,
-  AdvancedMarker,
-  InfoWindow,
-  Map as GoogleMap,
-  useApiIsLoaded,
-  useApiLoadingStatus,
-  useMap,
-  useMapsLibrary,
-} from '@vis.gl/react-google-maps';
+import L from 'leaflet';
 import { LocateFixed, Minus, Plus } from 'lucide-react';
 import type {
   CampusStop,
@@ -34,167 +25,90 @@ interface LiveMapCanvasProps {
   onSelectStop: (stopId: string) => void;
 }
 
-// Generic Thailand metro viewport center before real KBU Places coordinates resolve
-const INITIAL_FALLBACK_CENTER: LatLngPoint = { lat: 13.75, lng: 100.65 };
+// Centered on Kasem Bundit University Romklao Campus avenue (Way 249681391)
+const KBU_ROMKLAO_CENTER: [number, number] = [13.8029, 100.7365];
 
-interface RoutePolylineLayerProps {
-  path: LatLngPoint[];
+const OSM_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const OSM_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors';
+
+function escapeHtml(text: string): string {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
-function RoutePolylineLayer({ path }: RoutePolylineLayerProps) {
-  const map = useMap();
-  const mapsLib = useMapsLibrary('maps');
-  const polylineRef = useRef<google.maps.Polyline | null>(null);
-  const haloRef = useRef<google.maps.Polyline | null>(null);
+function buildStopIcon(stopLabel: string, isSelected: boolean, compact: boolean): L.DivIcon {
+  const dotClass = isSelected
+    ? 'w-5 h-5 bg-white border-[4px] border-[#FF6D24] shadow-md scale-110'
+    : 'w-4 h-4 bg-[#FAF7F5] border-2 border-[#6E3415] shadow-sm hover:scale-110';
 
-  useEffect(() => {
-    if (!map || !mapsLib || path.length < 2) return;
+  const labelHtml =
+    !compact && isSelected
+      ? `<span class="ml-2 px-2.5 py-1 rounded-lg bg-[#FF6D24] text-[#140E0A] text-xs font-extrabold whitespace-nowrap shadow-md">${escapeHtml(stopLabel)}</span>`
+      : '';
 
-    haloRef.current?.setMap(null);
-    polylineRef.current?.setMap(null);
-
-    const halo = new mapsLib.Polyline({
-      path,
-      geodesic: true,
-      strokeColor: '#FF6D24',
-      strokeOpacity: 0.25,
-      strokeWeight: 11,
-      zIndex: 1,
-      map,
-    });
-
-    const line = new mapsLib.Polyline({
-      path,
-      geodesic: true,
-      strokeColor: '#D95D1E',
-      strokeOpacity: 0.95,
-      strokeWeight: 5,
-      zIndex: 2,
-      map,
-    });
-
-    haloRef.current = halo;
-    polylineRef.current = line;
-
-    return () => {
-      halo.setMap(null);
-      line.setMap(null);
-    };
-  }, [map, mapsLib, path]);
-
-  return null;
+  return L.divIcon({
+    className: 'kbu-leaflet-div-icon',
+    html: `<div class="relative flex items-center" style="transform: translate(-10px, -10px);">
+      <span class="block rounded-full transition-transform shrink-0 ${dotClass}"></span>
+      ${labelHtml}
+    </div>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+  });
 }
 
-interface MapCameraControllerProps {
-  stops: CampusStop[];
-  routePath: LatLngPoint[];
-  selectedShuttleId: string;
-  telemetries: Record<string, ShuttleTelemetry>;
-  compact: boolean;
-  userLocation: LatLngPoint | null;
-  onRequestUserLocation: () => void;
+function buildShuttleIcon(
+  shuttleNumber: 1 | 2,
+  isSelected: boolean,
+  isLiveActive: boolean
+): L.DivIcon {
+  const isShuttle1 = shuttleNumber === 1;
+  const size = isShuttle1 ? 44 : 40;
+  const half = size / 2;
+  const shapeClass = isShuttle1 ? 'w-11 h-11 rounded-full text-lg' : 'w-10 h-10 rounded-xl text-lg';
+  const colorClass = !isLiveActive
+    ? 'bg-[#6E625B] text-white'
+    : isShuttle1
+      ? 'bg-[#FF6D24] text-[#140E0A]'
+      : 'bg-[#F5C14A] text-[#140E0A]';
+  const ringClass = isSelected ? 'ring-2 ring-white' : 'ring-1 ring-[#120D0A]';
+  const pulseHtml =
+    isSelected && isLiveActive
+      ? `<span class="absolute -inset-2.5 animate-kbu-pulse ${
+          isShuttle1 ? 'rounded-full bg-[#FF6D24]/35' : 'rounded-2xl bg-[#F5C14A]/35'
+        }"></span>`
+      : '';
+
+  return L.divIcon({
+    className: 'kbu-leaflet-div-icon',
+    html: `<div data-testid="shuttle-marker-${shuttleNumber}" class="relative flex items-center justify-center cursor-pointer ${
+      isLiveActive ? '' : 'opacity-75'
+    }" style="width:${size}px;height:${size}px;">
+      ${pulseHtml}
+      <div class="relative flex items-center justify-center font-extrabold shadow-lg transition-transform hover:scale-105 ${shapeClass} ${colorClass} ${ringClass}">
+        ${shuttleNumber}
+      </div>
+    </div>`,
+    iconSize: [size, size],
+    iconAnchor: [half, half],
+  });
 }
 
-function MapCameraController({
-  stops,
-  routePath,
-  selectedShuttleId,
-  telemetries,
-  compact,
-  userLocation,
-  onRequestUserLocation,
-}: MapCameraControllerProps) {
-  const map = useMap();
-  const coreLib = useMapsLibrary('core');
-  const hasFittedRef = useRef(false);
-
-  // Fit bounds smoothly once real Google Maps campus stops or route polyline load
-  useEffect(() => {
-    if (!map || !coreLib || hasFittedRef.current) return;
-    const points = routePath.length >= 2
-      ? routePath
-      : stops.map((s) => s.location).filter((loc): loc is LatLngPoint => loc !== null);
-
-    if (points.length === 0) return;
-
-    const bounds = new coreLib.LatLngBounds();
-    points.forEach((pt) => bounds.extend(pt));
-    const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 1024;
-    const padding: google.maps.Padding = compact
-      ? { top: 28, right: 68, bottom: 36, left: 28 }
-      : isMobileViewport
-        ? { top: 96, right: 68, bottom: 320, left: 28 }
-        : { top: 88, right: 84, bottom: 220, left: 48 };
-    map.fitBounds(bounds, padding);
-    hasFittedRef.current = true;
-  }, [map, coreLib, routePath, stops, compact]);
-
-  const handleZoomIn = useCallback(() => {
-    if (!map) return;
-    const current = map.getZoom() ?? 13;
-    map.setZoom(Math.min(19, current + 1));
-  }, [map]);
-
-  const handleZoomOut = useCallback(() => {
-    if (!map) return;
-    const current = map.getZoom() ?? 13;
-    map.setZoom(Math.max(10, current - 1));
-  }, [map]);
-
-  const handleRecenter = useCallback(() => {
-    if (!map) return;
-    const activeTel = telemetries[selectedShuttleId];
-    if (activeTel?.position) {
-      map.panTo(activeTel.position);
-      map.setZoom(14);
-    } else if (userLocation) {
-      map.panTo(userLocation);
-      map.setZoom(14);
-    } else {
-      const firstLoc = stops.find((s) => s.location)?.location;
-      if (firstLoc) {
-        map.panTo(firstLoc);
-        map.setZoom(13);
-      }
-    }
-    onRequestUserLocation();
-  }, [map, telemetries, selectedShuttleId, userLocation, stops, onRequestUserLocation]);
-
-  return (
-    <div
-      className={`absolute right-4 z-20 flex flex-col gap-2.5 ${
-        compact ? 'top-1/2 -translate-y-1/2' : 'top-24 sm:top-28 lg:top-1/2 lg:-translate-y-1/2'
-      }`}
-    >
-      <button
-        type="button"
-        onClick={handleRecenter}
-        aria-label="Center map on selected shuttle"
-        title="Center on shuttle & locate me"
-        className="w-11 h-11 rounded-2xl bg-white/95 dark:bg-[#1C1511]/95 border border-[#DDD2C9] dark:border-[#3A2E27] text-[#1A120E] dark:text-white flex items-center justify-center hover:border-[#FF6D24] transition-colors cursor-pointer shadow-md"
-      >
-        <LocateFixed className="w-5 h-5" />
-      </button>
-      <button
-        type="button"
-        onClick={handleZoomIn}
-        aria-label="Zoom in map"
-        title="Zoom in"
-        className="w-11 h-11 rounded-2xl bg-white/95 dark:bg-[#1C1511]/95 border border-[#DDD2C9] dark:border-[#3A2E27] text-[#1A120E] dark:text-white flex items-center justify-center hover:border-[#FF6D24] transition-colors cursor-pointer shadow-md"
-      >
-        <Plus className="w-5 h-5" />
-      </button>
-      <button
-        type="button"
-        onClick={handleZoomOut}
-        aria-label="Zoom out map"
-        title="Zoom out"
-        className="w-11 h-11 rounded-2xl bg-white/95 dark:bg-[#1C1511]/95 border border-[#DDD2C9] dark:border-[#3A2E27] text-[#1A120E] dark:text-white flex items-center justify-center hover:border-[#FF6D24] transition-colors cursor-pointer shadow-md"
-      >
-        <Minus className="w-5 h-5" />
-      </button>
-    </div>
-  );
+function buildUserLocationIcon(): L.DivIcon {
+  return L.divIcon({
+    className: 'kbu-leaflet-div-icon',
+    html: `<div class="relative flex items-center justify-center w-8 h-8">
+      <span class="absolute inset-0 rounded-full bg-[#34C77B]/35 animate-kbu-pulse"></span>
+      <span class="w-4 h-4 rounded-full bg-[#34C77B] border-2 border-white shadow-md"></span>
+    </div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  });
 }
 
 export function LiveMapCanvas({
@@ -205,16 +119,258 @@ export function LiveMapCanvas({
   selectedShuttleId,
   selectedStopId,
   lang,
-  isDark,
   isLiveActive = true,
   compact = false,
   onSelectShuttle,
   onSelectStop,
 }: LiveMapCanvasProps) {
-  const isLoaded = useApiIsLoaded();
-  const apiStatus = useApiLoadingStatus();
-  const [infoStopId, setInfoStopId] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const haloPolylineRef = useRef<L.Polyline | null>(null);
+  const corePolylineRef = useRef<L.Polyline | null>(null);
+  const stopMarkersRef = useRef<Map<string, L.Marker>>(new Map());
+  const shuttleMarkersRef = useRef<Map<string, L.Marker>>(new Map());
+  const userMarkerRef = useRef<L.Marker | null>(null);
+  const lastRouteSignatureRef = useRef<string>('');
+
+  const onSelectStopRef = useRef(onSelectStop);
+  const onSelectShuttleRef = useRef(onSelectShuttle);
+  onSelectStopRef.current = onSelectStop;
+  onSelectShuttleRef.current = onSelectShuttle;
+
   const [userLocation, setUserLocation] = useState<LatLngPoint | null>(null);
+
+  // Initialize Leaflet map with CartoDB Dark Matter tiles (no API key required)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || mapRef.current) return;
+
+    const map = L.map(container, {
+      center: KBU_ROMKLAO_CENTER,
+      zoom: compact ? 15 : 16,
+      minZoom: 12,
+      maxZoom: 19,
+      zoomControl: false,
+      attributionControl: true,
+    });
+
+    L.tileLayer(OSM_TILE_URL, {
+      attribution: OSM_ATTRIBUTION,
+      maxZoom: 19,
+    }).addTo(map);
+
+    map.attributionControl.setPrefix(false);
+    mapRef.current = map;
+
+    const resizeObserver = new ResizeObserver(() => {
+      map.invalidateSize({ animate: false });
+    });
+    resizeObserver.observe(container);
+
+    return () => {
+      resizeObserver.disconnect();
+      map.remove();
+      mapRef.current = null;
+      haloPolylineRef.current = null;
+      corePolylineRef.current = null;
+      stopMarkersRef.current.clear();
+      shuttleMarkersRef.current.clear();
+      userMarkerRef.current = null;
+      lastRouteSignatureRef.current = '';
+    };
+  }, [compact]);
+
+  // Render glowing Romklao closed-loop route polyline & fit map viewport cleanly
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    haloPolylineRef.current?.remove();
+    corePolylineRef.current?.remove();
+    haloPolylineRef.current = null;
+    corePolylineRef.current = null;
+
+    const latLngs: [number, number][] = routeState.path.map((pt) => [pt.lat, pt.lng]);
+    if (latLngs.length >= 2) {
+      haloPolylineRef.current = L.polyline(latLngs, {
+        color: '#FF6D24',
+        weight: 11,
+        opacity: 0.28,
+        lineJoin: 'round',
+        lineCap: 'round',
+      }).addTo(map);
+
+      corePolylineRef.current = L.polyline(latLngs, {
+        color: '#FF6D24',
+        weight: 4.5,
+        opacity: 0.95,
+        lineJoin: 'round',
+        lineCap: 'round',
+      }).addTo(map);
+    }
+
+    const fitPoints: [number, number][] =
+      latLngs.length >= 2
+        ? latLngs
+        : stops
+            .filter((s): s is CampusStop & { location: LatLngPoint } => s.location !== null)
+            .map((s) => [s.location.lat, s.location.lng]);
+
+    const signature = `${fitPoints.length}:${fitPoints[0]?.[0] ?? 0}:${fitPoints[0]?.[1] ?? 0}`;
+    if (fitPoints.length >= 2 && lastRouteSignatureRef.current !== signature) {
+      lastRouteSignatureRef.current = signature;
+      const bounds = L.latLngBounds(fitPoints);
+      const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 1024;
+      const paddingTopLeft: [number, number] = compact
+        ? [28, 28]
+        : isMobileViewport
+          ? [28, 108]
+          : [48, 92];
+      const paddingBottomRight: [number, number] = compact
+        ? [68, 36]
+        : isMobileViewport
+          ? [68, 320]
+          : [84, 220];
+
+      map.fitBounds(bounds, {
+        paddingTopLeft,
+        paddingBottomRight,
+        maxZoom: compact ? 16 : 17,
+        animate: false,
+      });
+    }
+  }, [routeState.path, stops, compact]);
+
+  // Render & sync the 3 Romklao stop markers and address popups
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const activeIds = new Set<string>();
+
+    for (const stop of stops) {
+      if (!stop.location) continue;
+      activeIds.add(stop.id);
+
+      const isSelected = stop.id === selectedStopId;
+      const stopLabel = lang === 'th' ? stop.nameTh : stop.shortLabel;
+      const fullName = lang === 'th' ? stop.nameTh : stop.name;
+      const icon = buildStopIcon(stopLabel, isSelected, compact);
+
+      const popupHtml = `<div class="kbu-popup-inner">
+        <p class="text-xs font-extrabold text-[#FAF7F5]">${escapeHtml(fullName)}</p>
+        ${
+          stop.formattedAddress
+            ? `<p class="mt-1 text-[11px] text-[#BFB5AE] leading-snug">${escapeHtml(stop.formattedAddress)}</p>`
+            : ''
+        }
+      </div>`;
+
+      const existing = stopMarkersRef.current.get(stop.id);
+      if (existing) {
+        existing.setLatLng([stop.location.lat, stop.location.lng]);
+        existing.setIcon(icon);
+        existing.setZIndexOffset(isSelected ? 400 : 200);
+        if (!compact) {
+          existing.bindPopup(popupHtml, { closeButton: true, offset: [0, -8] });
+        }
+      } else {
+        const marker = L.marker([stop.location.lat, stop.location.lng], {
+          icon,
+          title: fullName,
+          zIndexOffset: isSelected ? 400 : 200,
+        }).addTo(map);
+
+        if (!compact) {
+          marker.bindPopup(popupHtml, { closeButton: true, offset: [0, -8] });
+        }
+
+        marker.on('click', () => {
+          onSelectStopRef.current(stop.id);
+        });
+
+        stopMarkersRef.current.set(stop.id, marker);
+      }
+    }
+
+    for (const [id, marker] of stopMarkersRef.current.entries()) {
+      if (!activeIds.has(id)) {
+        marker.remove();
+        stopMarkersRef.current.delete(id);
+      }
+    }
+  }, [stops, selectedStopId, lang, compact]);
+
+  // Render & smoothly update Shuttle 1 & Shuttle 2 markers along the Romklao loop
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const activeIds = new Set<string>();
+
+    for (const shuttle of shuttles) {
+      const tel = telemetries[shuttle.id];
+      if (!tel?.position) continue;
+      activeIds.add(shuttle.id);
+
+      const isSelected = shuttle.id === selectedShuttleId;
+      const markerTitle = isLiveActive
+        ? `${shuttle.name} · ${tel.etaMinutes} min away`
+        : `${shuttle.name} · Off hours (Next bus 07:00)`;
+      const icon = buildShuttleIcon(shuttle.number, isSelected, isLiveActive);
+
+      const existing = shuttleMarkersRef.current.get(shuttle.id);
+      if (existing) {
+        existing.setLatLng([tel.position.lat, tel.position.lng]);
+        existing.setIcon(icon);
+        existing.setZIndexOffset(isSelected ? 700 : 550);
+        if (existing.getElement()) {
+          existing.getElement()!.title = markerTitle;
+        }
+      } else {
+        const marker = L.marker([tel.position.lat, tel.position.lng], {
+          icon,
+          title: markerTitle,
+          zIndexOffset: isSelected ? 700 : 550,
+        }).addTo(map);
+
+        marker.on('click', () => {
+          onSelectShuttleRef.current(shuttle.id);
+        });
+
+        shuttleMarkersRef.current.set(shuttle.id, marker);
+      }
+    }
+
+    for (const [id, marker] of shuttleMarkersRef.current.entries()) {
+      if (!activeIds.has(id)) {
+        marker.remove();
+        shuttleMarkersRef.current.delete(id);
+      }
+    }
+  }, [shuttles, telemetries, selectedShuttleId, isLiveActive]);
+
+  // Render opt-in student geolocation marker
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (!userLocation) {
+      userMarkerRef.current?.remove();
+      userMarkerRef.current = null;
+      return;
+    }
+
+    if (userMarkerRef.current) {
+      userMarkerRef.current.setLatLng([userLocation.lat, userLocation.lng]);
+    } else {
+      userMarkerRef.current = L.marker([userLocation.lat, userLocation.lng], {
+        icon: buildUserLocationIcon(),
+        title: 'Your location',
+        zIndexOffset: 500,
+      }).addTo(map);
+    }
+  }, [userLocation]);
 
   const handleRequestUserLocation = useCallback(() => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) return;
@@ -232,181 +388,82 @@ export function LiveMapCanvas({
     );
   }, []);
 
-  const infoStop = infoStopId ? stops.find((s) => s.id === infoStopId) : null;
-  const hasApiFailure =
-    apiStatus === APILoadingStatus.FAILED || apiStatus === APILoadingStatus.AUTH_FAILURE;
+  const handleZoomIn = useCallback(() => {
+    mapRef.current?.zoomIn();
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    mapRef.current?.zoomOut();
+  }, []);
+
+  const handleRecenter = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const activeTel = telemetries[selectedShuttleId];
+    if (activeTel?.position) {
+      map.flyTo([activeTel.position.lat, activeTel.position.lng], 16, { duration: 0.6 });
+    } else if (userLocation) {
+      map.flyTo([userLocation.lat, userLocation.lng], 16, { duration: 0.6 });
+    } else {
+      const firstLoc = stops.find((s) => s.location)?.location;
+      if (firstLoc) {
+        map.flyTo([firstLoc.lat, firstLoc.lng], 16, { duration: 0.6 });
+      }
+    }
+    handleRequestUserLocation();
+  }, [telemetries, selectedShuttleId, userLocation, stops, handleRequestUserLocation]);
 
   return (
     <div
       data-testid="live-shuttle-map"
-      className={`relative w-full overflow-hidden bg-[#F3ECE6] dark:bg-[#110C09] ${
+      className={`relative w-full overflow-hidden bg-[#110C09] ${
         compact
           ? 'h-[320px] rounded-3xl border border-[#E5DBD3] dark:border-[#2C231E]'
           : 'h-full min-h-[560px]'
       }`}
     >
-      {hasApiFailure ? (
-        <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center">
-          <p className="text-sm font-bold text-[#1A120E] dark:text-white">
-            Unable to load Google Maps right now
-          </p>
-          <p className="mt-1.5 text-xs text-[#766962] dark:text-[#A69B94] max-w-xs">
-            Please verify your network connection or Google Maps API configuration.
-          </p>
-        </div>
-      ) : (
-        <GoogleMap
-          id={compact ? 'kbu-preview-map' : 'kbu-live-map'}
-          mapId="DEMO_MAP_ID"
-          defaultCenter={INITIAL_FALLBACK_CENTER}
-          defaultZoom={12}
-          gestureHandling="greedy"
-          disableDefaultUI={true}
-          colorScheme={isDark ? 'DARK' : 'LIGHT'}
-          internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
-          style={{ width: '100%', height: '100%' }}
+      {/* Isolated Leaflet Canvas keeps Leaflet's internal z-indexes beneath app overlays */}
+      <div
+        ref={containerRef}
+        className="relative isolate z-0 w-full h-full"
+        aria-label="KBU Live Campus Map powered by OpenStreetMap"
+      />
+
+      {/* Right-Side Map Controls matching Image 07 (Recenter, Zoom In, Zoom Out) */}
+      <div
+        className={`absolute right-4 z-20 flex flex-col gap-2.5 ${
+          compact ? 'top-1/2 -translate-y-1/2' : 'top-24 sm:top-28 lg:top-1/2 lg:-translate-y-1/2'
+        }`}
+      >
+        <button
+          type="button"
+          onClick={handleRecenter}
+          aria-label="Center map on selected shuttle"
+          title="Center on shuttle & locate me"
+          className="w-11 h-11 rounded-2xl bg-white/95 dark:bg-[#1C1511]/95 border border-[#DDD2C9] dark:border-[#3A2E27] text-[#1A120E] dark:text-white flex items-center justify-center hover:border-[#FF6D24] transition-colors cursor-pointer shadow-md"
         >
-          {/* Real Google Maps Driving Route Polyline */}
-          <RoutePolylineLayer path={routeState.path} />
-
-          {/* Camera bounds fitting & custom right-side controls matching Image 07 */}
-          <MapCameraController
-            stops={stops}
-            routePath={routeState.path}
-            selectedShuttleId={selectedShuttleId}
-            telemetries={telemetries}
-            compact={compact}
-            userLocation={userLocation}
-            onRequestUserLocation={handleRequestUserLocation}
-          />
-
-          {/* Campus Stop Markers (white dots with orange active ring, matching Image 07) */}
-          {stops.map((stop) => {
-            if (!stop.location) return null;
-            const isSelected = stop.id === selectedStopId;
-            const stopLabel = lang === 'th' ? stop.nameTh : stop.shortLabel;
-
-            return (
-              <AdvancedMarker
-                key={stop.id}
-                position={stop.location}
-                title={stop.name}
-                zIndex={isSelected ? 20 : 10}
-                onClick={() => {
-                  onSelectStop(stop.id);
-                  if (!compact) setInfoStopId(stop.id);
-                }}
-              >
-                <div className="relative flex items-center">
-                  <span
-                    className={`block rounded-full transition-transform ${
-                      isSelected
-                        ? 'w-5 h-5 bg-white border-[4px] border-[#FF6D24] shadow-md scale-110'
-                        : 'w-4 h-4 bg-[#FAF7F5] border-2 border-[#6E3415] shadow-sm hover:scale-110'
-                    }`}
-                  />
-                  {!compact && isSelected && (
-                    <span className="ml-2 px-2.5 py-1 rounded-lg bg-[#FF6D24] text-[#140E0A] text-xs font-extrabold whitespace-nowrap shadow-md">
-                      {stopLabel}
-                    </span>
-                  )}
-                </div>
-              </AdvancedMarker>
-            );
-          })}
-
-          {/* Stop InfoWindow displaying Google Maps formatted address */}
-          {!compact && infoStop?.location && (
-            <InfoWindow
-              position={infoStop.location}
-              onCloseClick={() => setInfoStopId(null)}
-            >
-              <div className="p-1 max-w-[220px] text-[#1A120E]">
-                <p className="text-xs font-extrabold">
-                  {lang === 'th' ? infoStop.nameTh : infoStop.name}
-                </p>
-                {infoStop.formattedAddress && (
-                  <p className="mt-1 text-[11px] text-[#5C4F48] leading-snug">
-                    {infoStop.formattedAddress}
-                  </p>
-                )}
-              </div>
-            </InfoWindow>
-          )}
-
-          {/* Opt-In Real Student Location Green Pulsing Dot matching Image 07 */}
-          {userLocation && (
-            <AdvancedMarker position={userLocation} title="Your location" zIndex={25}>
-              <div className="relative flex items-center justify-center w-8 h-8">
-                <span className="absolute inset-0 rounded-full bg-[#34C77B]/35 animate-kbu-pulse" />
-                <span className="w-4 h-4 rounded-full bg-[#34C77B] border-2 border-white shadow-md" />
-              </div>
-            </AdvancedMarker>
-          )}
-
-          {/* Real-Time Moving Shuttle Markers (1 = Orange Circle, 2 = Amber Square) */}
-          {shuttles.map((shuttle) => {
-            const tel = telemetries[shuttle.id];
-            if (!tel?.position) return null;
-            const isSelected = shuttle.id === selectedShuttleId;
-            const isShuttle1 = shuttle.number === 1;
-            const markerTitle = isLiveActive
-              ? `${shuttle.name} · ${tel.etaMinutes} min away`
-              : `${shuttle.name} · Off hours (Next bus 07:00)`;
-
-            return (
-              <AdvancedMarker
-                key={shuttle.id}
-                position={tel.position}
-                title={markerTitle}
-                zIndex={isSelected ? 40 : 30}
-                onClick={() => onSelectShuttle(shuttle.id)}
-              >
-                <div
-                  data-testid={`shuttle-marker-${shuttle.number}`}
-                  className={`relative flex items-center justify-center cursor-pointer ${
-                    isLiveActive ? '' : 'opacity-75'
-                  }`}
-                >
-                  {isSelected && isLiveActive && (
-                    <span
-                      className={`absolute -inset-2.5 animate-kbu-pulse ${
-                        isShuttle1
-                          ? 'rounded-full bg-[#FF6D24]/30'
-                          : 'rounded-2xl bg-[#F5C14A]/30'
-                      }`}
-                    />
-                  )}
-                  <div
-                    className={`relative flex items-center justify-center font-extrabold shadow-lg transition-transform hover:scale-105 ${
-                      isShuttle1
-                        ? 'w-11 h-11 rounded-full text-lg'
-                        : 'w-10 h-10 rounded-xl text-lg'
-                    } ${
-                      !isLiveActive
-                        ? 'bg-[#6E625B] text-white'
-                        : isShuttle1
-                          ? 'bg-[#FF6D24] text-[#140E0A]'
-                          : 'bg-[#F5C14A] text-[#140E0A]'
-                    } ${isSelected ? 'ring-2 ring-white' : 'ring-1 ring-[#120D0A]'}`}
-                  >
-                    {shuttle.number}
-                  </div>
-                </div>
-              </AdvancedMarker>
-            );
-          })}
-        </GoogleMap>
-      )}
-
-      {/* Subtle Loading Overlay while Google Maps JS SDK / Routes initialize */}
-      {(!isLoaded || routeState.loading) && !hasApiFailure && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center z-20">
-          <span className="px-3.5 py-1.5 rounded-full bg-[#1A1411]/90 text-xs font-semibold text-[#FAF7F5] border border-[#352B25] shadow-md">
-            Loading live Google Maps campus corridor…
-          </span>
-        </div>
-      )}
+          <LocateFixed className="w-5 h-5" />
+        </button>
+        <button
+          type="button"
+          onClick={handleZoomIn}
+          aria-label="Zoom in map"
+          title="Zoom in"
+          className="w-11 h-11 rounded-2xl bg-white/95 dark:bg-[#1C1511]/95 border border-[#DDD2C9] dark:border-[#3A2E27] text-[#1A120E] dark:text-white flex items-center justify-center hover:border-[#FF6D24] transition-colors cursor-pointer shadow-md"
+        >
+          <Plus className="w-5 h-5" />
+        </button>
+        <button
+          type="button"
+          onClick={handleZoomOut}
+          aria-label="Zoom out map"
+          title="Zoom out"
+          className="w-11 h-11 rounded-2xl bg-white/95 dark:bg-[#1C1511]/95 border border-[#DDD2C9] dark:border-[#3A2E27] text-[#1A120E] dark:text-white flex items-center justify-center hover:border-[#FF6D24] transition-colors cursor-pointer shadow-md"
+        >
+          <Minus className="w-5 h-5" />
+        </button>
+      </div>
     </div>
   );
 }

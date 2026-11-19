@@ -16,12 +16,12 @@ export const SCHEDULE_INTERVAL_MINUTES = 15;
 
 /** Fallback closed-loop timing for the local Romklao 3-stop shuttle loop */
 export const DEFAULT_LOOP_MINUTES = 12;
-export const DEFAULT_LOOP_KM = 3.6;
+export const DEFAULT_LOOP_KM = 1.4;
 
 /**
  * Kasem Bundit University Romklao local shuttle stops (3 places only).
- * Real-world coordinates and formatted addresses are resolved dynamically
- * at runtime via Google Maps Places API (New) — Place.searchByText().
+ * Coordinates are anchored directly to OpenStreetMap Way 249681391 (KBU Romklao Campus Avenue)
+ * and the Dormitory canal loop (Way 382356626 / Way 694570517) matching the campus map reference.
  */
 export const KBU_STOPS: CampusStop[] = [
   {
@@ -32,8 +32,9 @@ export const KBU_STOPS: CampusStop[] = [
     campus: 'Dormitory',
     placeQuery: 'หอพักมหาวิทยาลัยเกษมบัณฑิต วิทยาเขตร่มเกล้า มีนบุรี กรุงเทพมหานคร',
     fallbackQuery: 'Kasem Bundit University Residence Hall Romklao Min Buri Bangkok',
+    formattedAddress: 'Kasem Bundit Romklao Dormitory (ใกล้ 40 ซอย รามคำแหง 190/3), Min Buri, Bangkok 10510',
     routeProgress: 0.02,
-    location: null,
+    location: { lat: 13.801706, lng: 100.733747 },
   },
   {
     id: 'stop-khaosoi-ngernlan',
@@ -42,9 +43,10 @@ export const KBU_STOPS: CampusStop[] = [
     shortLabel: 'ข้าวซอยเงินล้าน',
     campus: 'Local Stop',
     placeQuery: 'ข้าวซอยเงินล้าน ร่มเกล้า มีนบุรี กรุงเทพมหานคร',
-    fallbackQuery: 'ข้าวซอย ถนนร่มเกล้า มีนบุรี กรุงเทพมหานคร',
-    routeProgress: 0.36,
-    location: null,
+    fallbackQuery: 'Faculty of Sports Science Kasem Bundit University Romklao Min Buri Bangkok',
+    formattedAddress: 'KBU Romklao Campus Avenue (ใกล้คณะวิทยาศาสตร์การกีฬา / ซอยร่มเกล้า 2), Min Buri, Bangkok 10510',
+    routeProgress: 0.30,
+    location: { lat: 13.803132, lng: 100.737064 },
   },
   {
     id: 'stop-romklao-campus',
@@ -53,9 +55,37 @@ export const KBU_STOPS: CampusStop[] = [
     shortLabel: 'KBU Romklao Campus',
     campus: 'Campus',
     placeQuery: 'Kasem Bundit University Romklao Campus, Min Buri, Bangkok, Thailand',
-    routeProgress: 0.68,
-    location: null,
+    formattedAddress: '60 ถ. ร่มเกล้า แขวงมีนบุรี เขตมีนบุรี กรุงเทพมหานคร 10510',
+    routeProgress: 0.48,
+    location: { lat: 13.803915, lng: 100.738892 },
   },
+];
+
+/**
+ * Exact OpenStreetMap road-snapped closed loop tracing Way 382356626, Way 249681392,
+ * Way 249681391 (KBU Romklao Campus Avenue), and Way 694570517 (Dormitory canal turnaround)
+ * between Kasem Bundit Romklao Dormitory, ข้าวซอยเงินล้าน, and Kasem Bundit University Romklao Campus.
+ */
+export const DEFAULT_ROMKLAO_LOOP_PATH: LatLngPoint[] = [
+  // Outbound: Kasem Bundit Romklao Dormitory -> Campus Avenue (Way 249681391) -> KBU Romklao Campus
+  { lat: 13.801706, lng: 100.733747 },
+  { lat: 13.801922, lng: 100.73417 },
+  { lat: 13.80211, lng: 100.734071 },
+  { lat: 13.80282, lng: 100.736073 },
+  { lat: 13.803132, lng: 100.737064 },
+  { lat: 13.803319, lng: 100.737602 },
+  { lat: 13.803476, lng: 100.738019 },
+  { lat: 13.803915, lng: 100.738892 },
+  // Return: KBU Romklao Campus -> Campus Avenue -> 40 ซอย รามคำแหง 190/3 -> Canal loop -> Dormitory
+  { lat: 13.803476, lng: 100.738019 },
+  { lat: 13.803319, lng: 100.737602 },
+  { lat: 13.803132, lng: 100.737064 },
+  { lat: 13.80282, lng: 100.736073 },
+  { lat: 13.80211, lng: 100.734071 },
+  { lat: 13.801801, lng: 100.733315 },
+  { lat: 13.801744, lng: 100.733267 },
+  { lat: 13.801489, lng: 100.733323 },
+  { lat: 13.801706, lng: 100.733747 },
 ];
 
 /**
@@ -69,8 +99,8 @@ export const INITIAL_SHUTTLES: ShuttleState[] = [
     routeLabel: 'Dormitory → ข้าวซอยเงินล้าน → Romklao Campus',
     plateNumber: 'KBU-01 · 32-8412',
     driverName: 'Somchai K.',
-    // Approaching ข้าวซอยเงินล้าน along the Romklao loop (~2 min away)
-    progress: 0.18,
+    // Departing Dormitory toward ข้าวซอยเงินล้าน along KBU Campus Avenue (~3 min away)
+    progress: 0.04,
     speedPerSec: 0.0022,
     dwellRemainingSec: 0,
     speedKmh: 26,
@@ -85,8 +115,8 @@ export const INITIAL_SHUTTLES: ShuttleState[] = [
     routeLabel: 'Dormitory → ข้าวซอยเงินล้าน → Romklao Campus',
     plateNumber: 'KBU-02 · 32-8419',
     driverName: 'Prasert W.',
-    // Staggered half a loop apart from Shuttle 1 (at Romklao Campus heading back to Dormitory)
-    progress: 0.68,
+    // Staggered half a loop apart from Shuttle 1 (departing Romklao Campus back to Dormitory)
+    progress: 0.54,
     speedPerSec: 0.0022,
     dwellRemainingSec: 0,
     speedKmh: 28,

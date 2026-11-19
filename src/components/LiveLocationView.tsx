@@ -131,7 +131,7 @@ export function LiveLocationView({
             )}
           </div>
 
-          {/* Live Google Map Canvas */}
+          {/* Live Leaflet / OpenStreetMap Canvas */}
           <LiveMapCanvas
             shuttles={shuttles}
             telemetries={telemetries}

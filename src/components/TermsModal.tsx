@@ -58,28 +58,19 @@ export function TermsModal({ open, onClose }: TermsModalProps) {
 
           <section>
             <h3 className="font-bold text-[#1A120E] dark:text-white">
-              3. Google Maps Features & Location Privacy
+              3. OpenStreetMap Map Data & Location Privacy
             </h3>
             <p className="mt-1">
-              KBU Ride integrates Google Maps features and content. By using this application, you are also bound by the{' '}
+              KBU Ride renders live campus maps using Leaflet with{' '}
               <a
-                href="https://maps.google.com/help/terms_maps/?utm_campaign=gmp_mcp_codeassist_v1_aistudio"
+                href="https://www.openstreetmap.org/copyright"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline text-[#FF6D24] hover:text-[#FF8D52]"
               >
-                Google Maps/Google Earth Additional Terms of Service
+                OpenStreetMap
               </a>{' '}
-              and the{' '}
-              <a
-                href="https://policies.google.com/privacy?utm_campaign=gmp_mcp_codeassist_v1_aistudio"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline text-[#FF6D24] hover:text-[#FF8D52]"
-              >
-                Google Privacy Policy
-              </a>
-              . Sharing your device location is optional, requires explicit browser permission, and can be revoked at any time in your browser settings.
+              tiles and map data. Sharing your device location is optional, requires explicit browser permission, and can be revoked at any time in your browser settings.
             </p>
           </section>
         </div>

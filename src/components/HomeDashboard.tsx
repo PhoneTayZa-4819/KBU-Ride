@@ -106,7 +106,7 @@ export function HomeDashboard({
               {greeting}
             </p>
             <p className="text-base sm:text-lg font-bold text-[#1A120E] dark:text-white truncate">
-              {profile.name}
+              {profile.name.trim() || t.addYourName}
             </p>
           </div>
           <span
@@ -153,7 +153,7 @@ export function HomeDashboard({
             </div>
             <div className="min-w-0">
               <h2 className="text-xl font-extrabold text-[#1A120E] dark:text-white truncate">
-                {profile.name}
+                {profile.name.trim() || t.addYourName}
               </h2>
               <p className="text-sm text-[#766962] dark:text-[#A69B94] tabular-nums">
                 {maskedPhone}

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { APIProvider } from '@vis.gl/react-google-maps';
 import { BellRing, X } from 'lucide-react';
 import type {
   AppPhase,
@@ -18,6 +17,7 @@ import { TRANSLATIONS } from './utils/i18n';
 import {
   DEFAULT_LOOP_KM,
   DEFAULT_LOOP_MINUTES,
+  DEFAULT_ROMKLAO_LOOP_PATH,
   INITIAL_SHUTTLES,
   KBU_STOPS,
   advanceShuttles,
@@ -40,8 +40,6 @@ import { ChangePhoneModal } from './components/ChangePhoneModal';
 import { KbuRouteResolver } from './components/KbuRouteResolver';
 import { OfflineIndicator } from './components/OfflineIndicator';
 
-const MAPS_API_KEY = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined) ?? '';
-
 const STORAGE_KEYS = {
   AUTH: 'kbu_ride_authenticated',
   PROFILE: 'kbu_ride_profile',
@@ -52,11 +50,11 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_PROFILE: StudentProfile = {
-  name: 'Mint Narong',
+  name: '',
   studentId: '',
   faculty: '',
   countryCode: '+66',
-  phoneNumber: '8123456789',
+  phoneNumber: '',
   verified: true,
 };
 
@@ -133,6 +131,7 @@ export default function App() {
     const stored = readStorage(STORAGE_KEYS.PROFILE, DEFAULT_PROFILE);
     return {
       ...stored,
+      name: stored.name === 'Mint Narong' ? '' : stored.name,
       studentId: stored.studentId === '660710428' ? '' : stored.studentId,
       faculty: stored.faculty === 'Faculty of Engineering' ? '' : stored.faculty,
     };
@@ -150,10 +149,10 @@ export default function App() {
   const [reminderShuttleId, setReminderShuttleId] = useState<string>('shuttle-2');
   const [stops, setStops] = useState<CampusStop[]>(KBU_STOPS);
   const [routeState, setRouteState] = useState<LiveRouteState>({
-    path: [],
+    path: DEFAULT_ROMKLAO_LOOP_PATH,
     distanceKm: DEFAULT_LOOP_KM,
     durationMinutes: DEFAULT_LOOP_MINUTES,
-    loading: Boolean(MAPS_API_KEY),
+    loading: false,
     error: null,
   });
   const [selectedStopId, setSelectedStopId] = useState<string>(() => {
@@ -170,7 +169,6 @@ export default function App() {
   });
   const [history, setHistory] = useState<NotificationItem[]>(DEFAULT_HISTORY);
   const [liveAlert, setLiveAlert] = useState<string | null>(null);
-  const [gmpQuotaExceeded, setGmpQuotaExceeded] = useState<boolean>(false);
   const [termsOpen, setTermsOpen] = useState(false);
   const [changePhoneOpen, setChangePhoneOpen] = useState(false);
 
@@ -187,13 +185,6 @@ export default function App() {
     }, 30_000);
     return () => window.clearInterval(timer);
   }, [readCurrentServiceStatus]);
-
-  // Listen to global Google Maps quota / auth failure custom events
-  useEffect(() => {
-    const handleQuota = () => setGmpQuotaExceeded(true);
-    window.addEventListener('gmp-quota-exceeded', handleQuota);
-    return () => window.removeEventListener('gmp-quota-exceeded', handleQuota);
-  }, []);
 
   // Apply Dark / Light / System class to <html>
   useEffect(() => {
@@ -300,9 +291,14 @@ export default function App() {
     setPhase((current) => (current === 'splash' ? 'onboarding' : current));
   }, []);
 
-  const handleAuthenticated = (payload: { countryCode: string; phoneNumber: string }) => {
+  const handleAuthenticated = (payload: {
+    name: string;
+    countryCode: string;
+    phoneNumber: string;
+  }) => {
     setProfile((prev) => ({
       ...prev,
+      name: payload.name,
       countryCode: payload.countryCode,
       phoneNumber: payload.phoneNumber,
       verified: true,
@@ -367,27 +363,6 @@ export default function App() {
       data-tab={activeTab}
       className="min-h-screen w-full bg-[#FAF7F4] dark:bg-[#0E0A08] text-[#1A120E] dark:text-[#FAF7F5] transition-colors duration-200"
     >
-      {/* Persistent Tier 1 & Tier 2 Google Maps Platform Quota Notice Banner */}
-      {gmpQuotaExceeded && (
-        <div
-          role="alert"
-          className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2.5 text-xs md:text-sm text-center sticky top-0 z-50 shadow-sm"
-        >
-          <span>
-            Google Maps Platform quota reached. If you are the app owner, visit{' '}
-            <a
-              href="https://developers.google.com/maps/ai/ai-studio?utm_campaign=gmp_mcp_codeassist_v1_aistudio#quota_exceeded_errors"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline font-semibold text-amber-950 hover:text-amber-800"
-            >
-              maps developer site
-            </a>{' '}
-            for instructions to update your account.
-          </span>
-        </div>
-      )}
-
       {phase === 'splash' && <SplashScreen t={t} onComplete={handleSplashDone} />}
 
       {phase === 'onboarding' && (
@@ -401,18 +376,14 @@ export default function App() {
       {phase === 'auth' && (
         <AuthScreen
           t={t}
+          initialName={profile.name}
           initialCountryCode={profile.countryCode}
           onAuthenticated={handleAuthenticated}
         />
       )}
 
       {phase === 'app' && (
-        <APIProvider
-          apiKey={MAPS_API_KEY}
-          language={language === 'th' ? 'th' : 'en'}
-          region="TH"
-          libraries={['places', 'routes', 'marker']}
-        >
+        <>
           <KbuRouteResolver
             onStopsResolved={setStops}
             onRouteResolved={setRouteState}
@@ -550,7 +521,7 @@ export default function App() {
             {/* Mobile Floating Bottom Navigation Bar matching Images 04, 07, 08 */}
             <MobileBottomNav t={t} activeTab={activeTab} onSelectTab={setActiveTab} />
           </div>
-        </APIProvider>
+        </>
       )}
 
       {/* Modals */}

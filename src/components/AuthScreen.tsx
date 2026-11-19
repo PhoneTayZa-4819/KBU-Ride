@@ -12,9 +12,10 @@ import type { TranslationStrings } from '../utils/i18n';
 
 interface AuthScreenProps {
   t: TranslationStrings;
+  initialName?: string;
   initialCountryCode?: string;
   initialPhone?: string;
-  onAuthenticated: (payload: { countryCode: string; phoneNumber: string }) => void;
+  onAuthenticated: (payload: { name: string; countryCode: string; phoneNumber: string }) => void;
 }
 
 const COUNTRY_CODES = [
@@ -26,10 +27,13 @@ const COUNTRY_CODES = [
 
 export function AuthScreen({
   t,
+  initialName = '',
   initialCountryCode = '+66',
   initialPhone = '',
   onAuthenticated,
 }: AuthScreenProps) {
+  const [nameInput, setNameInput] = useState(initialName);
+  const [nameError, setNameError] = useState<string | null>(null);
   const [countryCode, setCountryCode] = useState(initialCountryCode);
   const [phoneInput, setPhoneInput] = useState(initialPhone);
   const [phoneError, setPhoneError] = useState<string | null>(null);
@@ -52,6 +56,13 @@ export function AuthScreen({
 
   const handleContinue = (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanedName = nameInput.trim();
+    if (cleanedName.length < 2) {
+      setNameError(t.nameRequiredError);
+      return;
+    }
+    setNameError(null);
+
     const result = validatePhoneNumber(phoneInput);
     if (!result.valid) {
       setPhoneError(result.error ?? 'Please enter a valid phone number.');
@@ -74,6 +85,13 @@ export function AuthScreen({
   };
 
   const handleVerifyCode = (code: string) => {
+    const cleanedName = nameInput.trim();
+    if (cleanedName.length < 2) {
+      setNameError(t.nameRequiredError);
+      return;
+    }
+    setNameError(null);
+
     const phoneCheck = validatePhoneNumber(phoneInput);
     if (!phoneCheck.valid) {
       setPhoneError(phoneCheck.error ?? 'Please enter a valid phone number.');
@@ -84,6 +102,7 @@ export function AuthScreen({
     if (res.success) {
       setOtpError(null);
       onAuthenticated({
+        name: cleanedName,
         countryCode,
         phoneNumber: phoneCheck.cleaned,
       });
@@ -190,7 +209,36 @@ export function AuthScreen({
           </h1>
           <p className="mt-2.5 text-sm sm:text-base text-[#A69B94]">{t.welcomeSubtitle}</p>
 
-          <form onSubmit={handleContinue} noValidate className="mt-6">
+          <form onSubmit={handleContinue} noValidate className="mt-6 space-y-3">
+            {/* Blank Full Name Input so each student enters their own name */}
+            <div>
+              <label htmlFor="kbu-student-name" className="sr-only">
+                {t.fullNameLabel}
+              </label>
+              <input
+                id="kbu-student-name"
+                type="text"
+                autoComplete="name"
+                placeholder={t.fullNamePlaceholder}
+                value={nameInput}
+                onChange={(e) => {
+                  setNameInput(e.target.value);
+                  if (nameError) setNameError(null);
+                }}
+                aria-invalid={Boolean(nameError)}
+                className={`w-full h-[52px] rounded-2xl bg-[#1A1411] border px-4 text-base font-medium text-white placeholder-[#6D625B] focus:outline-none transition-colors ${
+                  nameError
+                    ? 'border-[#F16565]'
+                    : 'border-[#352B25] focus:border-[#FF6D24] focus:ring-2 focus:ring-[#FF6D24]/30'
+                }`}
+              />
+              {nameError && (
+                <p role="alert" className="mt-1.5 text-xs font-medium text-[#F16565]">
+                  {nameError}
+                </p>
+              )}
+            </div>
+
             <div className="flex items-stretch gap-3">
               <div className="w-24 shrink-0">
                 <label htmlFor="kbu-country-code" className="sr-only">

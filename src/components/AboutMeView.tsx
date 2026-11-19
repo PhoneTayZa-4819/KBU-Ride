@@ -94,6 +94,7 @@ export function AboutMeView({
                     type="text"
                     value={draftName}
                     onChange={(e) => setDraftName(e.target.value)}
+                    placeholder={t.fullNamePlaceholder}
                     autoFocus
                     className="w-full h-10 rounded-xl bg-[#FAF7F4] dark:bg-[#221B17] border border-[#FF6D24] px-3 text-sm font-bold text-[#1A120E] dark:text-white focus:outline-none"
                   />
@@ -106,22 +107,28 @@ export function AboutMeView({
                   </button>
                 </form>
               ) : (
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-extrabold text-[#1A120E] dark:text-white truncate">
-                    {profile.name}
-                  </h2>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDraftName(profile.name);
-                      setEditingName(true);
-                    }}
-                    aria-label="Edit display name"
-                    className="w-8 h-8 rounded-lg text-[#8C8078] hover:text-[#FF6D24] flex items-center justify-center cursor-pointer"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraftName(profile.name);
+                    setEditingName(true);
+                  }}
+                  aria-label="Edit display name"
+                  className="flex items-center gap-2 text-left group cursor-pointer max-w-full"
+                >
+                  <h2
+                    className={`text-xl font-extrabold truncate ${
+                      profile.name.trim()
+                        ? 'text-[#1A120E] dark:text-white'
+                        : 'text-[#8C8078] dark:text-[#968A82]'
+                    }`}
                   >
+                    {profile.name.trim() || t.addYourName}
+                  </h2>
+                  <span className="w-8 h-8 rounded-lg text-[#8C8078] group-hover:text-[#FF6D24] flex items-center justify-center shrink-0">
                     <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                  </span>
+                </button>
               )}
 
               <p className="text-sm text-[#766962] dark:text-[#A69B94] tabular-nums">

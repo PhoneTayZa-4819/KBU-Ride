@@ -113,12 +113,12 @@ test('computeShuttleTelemetry handles both live staggered loop and off-hours pau
   const tel1 = computeShuttleTelemetry(INITIAL_SHUTTLES[0], KBU_STOPS, stopMid.id, SYNTHETIC_LOOP_PATH);
   const tel2 = computeShuttleTelemetry(INITIAL_SHUTTLES[1], KBU_STOPS, stopMid.id, SYNTHETIC_LOOP_PATH);
 
-  assert.equal(tel1.etaMinutes, 2);
+  assert.equal(tel1.etaMinutes, 3);
   assert.equal(tel1.status, 'Approaching');
   assert.equal(tel1.targetStop.id, stopMid.id);
   assert.ok(tel1.position !== null);
 
-  assert.equal(tel2.etaMinutes, 8);
+  assert.equal(tel2.etaMinutes, 9);
   assert.equal(tel2.status, 'On route');
 
   const offHoursTel = computeShuttleTelemetry(
@@ -126,7 +126,7 @@ test('computeShuttleTelemetry handles both live staggered loop and off-hours pau
     KBU_STOPS,
     stopMid.id,
     SYNTHETIC_LOOP_PATH,
-    3.6,
+    1.4,
     12,
     false
   );
